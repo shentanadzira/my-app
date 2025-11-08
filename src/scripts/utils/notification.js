@@ -1,4 +1,4 @@
-// notification.js
+
 import swRegister, { disableNotifications } from './sw-register.js';
 
 const toggleBtn = document.getElementById('toggleNotification');
@@ -21,7 +21,7 @@ toggleBtn.addEventListener('click', async () => {
   toggleBtn.disabled = false;
 });
 
-// Cek status awal subscription
+
 (async () => {
   toggleBtn.disabled = true;
   if ('serviceWorker' in navigator && 'PushManager' in window) {

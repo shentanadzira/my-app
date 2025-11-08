@@ -9,7 +9,6 @@
   <meta name="theme-color" content="#2196f3">
   <title>App</title>
   
-  <!-- Link ke CSS eksternal -->
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
@@ -38,23 +37,19 @@
     <h1>Push Notification</h1>
     <button id="toggleNotification">Enable Notification</button>
 
-    <!-- ================= Notes Section ================= -->
     <section id="notes-section">
       <h2>Catatan</h2>
 
-      <!-- Filter & Sorting -->
       <div class="notes-controls">
         <input id="search-note" placeholder="Cari catatan..." />
         <button id="sort-note">Sort A-Z / Z-A</button>
       </div>
 
-      <!-- Form Tambah Catatan -->
       <form id="note-form">
         <input id="note-input" placeholder="Tulis catatan..." required />
         <button type="submit">Tambah</button>
       </form>
 
-      <!-- List Notes -->
       <ul id="note-list"></ul>
     </section>
   </main>

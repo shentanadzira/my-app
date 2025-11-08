@@ -1,4 +1,3 @@
-// src/utils/db.js
 const DB_NAME = 'notesDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'notes';
