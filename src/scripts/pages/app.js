@@ -1,16 +1,17 @@
-import routes from '../routes/routes';
+import '../styles/styles.css';
+import routes from '../routes/routes.js';
 import { sleep } from '../utils/index.js';
-import swRegister from '../utils/sw-register.js'; // ✅ PWA
-import { addNote, getAllNotes, deleteNote } from '../utils/db.js'; // ✅ IndexedDB
-import { syncOfflineData } from '../utils/sync.js'; // ✅ Sync offline → online
+import swRegister from '../utils/sw-register.js';
+import { addDraft, getAllDrafts, deleteDraft } from '../utils/db.js';
+import { syncOfflineData } from '../utils/sync.js';
 
 class App {
-  #content = null;
-  #drawerButton = null;
-  #navigationDrawer = null;
-  #notesCache = []; // Cache untuk filter/sorting
+  #content;
+  #drawerButton;
+  #navigationDrawer;
+  #draftsCache = [];
 
-  constructor({ navigationDrawer, drawerButton, content }) {
+  constructor({ content, drawerButton, navigationDrawer }) {
     this.#content = content;
     this.#drawerButton = drawerButton;
     this.#navigationDrawer = navigationDrawer;
@@ -23,26 +24,23 @@ class App {
     this.renderPage();
   }
 
-  // ================= Drawer =================
   _setupDrawer() {
     this.#drawerButton.addEventListener('click', () => {
       this.#navigationDrawer.classList.toggle('open');
     });
-
-    document.body.addEventListener('click', (event) => {
-      if (!this.#navigationDrawer.contains(event.target) && !this.#drawerButton.contains(event.target)) {
+    document.body.addEventListener('click', e => {
+      if (!this.#navigationDrawer.contains(e.target) &&
+          !this.#drawerButton.contains(e.target)) {
         this.#navigationDrawer.classList.remove('open');
       }
-
-      this.#navigationDrawer.querySelectorAll('a').forEach((link) => {
-        if (link.contains(event.target)) {
-          this.#navigationDrawer.classList.remove('open');
-        }
+    });
+    this.#navigationDrawer.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', () => {
+        this.#navigationDrawer.classList.remove('open');
       });
     });
   }
 
-  // ================= Auth Links =================
   _updateAuthLinks() {
     const loginLink = document.getElementById('nav-login');
     const logoutLink = document.getElementById('nav-logout');
@@ -65,85 +63,73 @@ class App {
     }
   }
 
-  // ================= PWA =================
   async _registerServiceWorker() {
     try {
       await swRegister();
-      console.log('✅ Service Worker registered successfully.');
-    } catch (error) {
-      console.error('❌ Service Worker registration failed:', error);
+      console.log('✅ Service Worker registered');
+    } catch (err) {
+      console.error('❌ Service Worker registration failed:', err);
     }
   }
 
   _setupInstallPrompt() {
     let deferredPrompt;
-    const installButton = document.getElementById('installBtn');
+    const installBtn = document.getElementById('installBtn');
 
-    window.addEventListener('beforeinstallprompt', (e) => {
+    window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
       deferredPrompt = e;
-
-      console.log('✅ beforeinstallprompt event fired');
-      if (installButton) {
-        installButton.style.display = 'block';
-
-        installButton.addEventListener('click', async () => {
-          installButton.style.display = 'none';
+      if (installBtn) {
+        installBtn.style.display = 'block';
+        installBtn.addEventListener('click', async () => {
+          installBtn.style.display = 'none';
           deferredPrompt.prompt();
           const { outcome } = await deferredPrompt.userChoice;
-          console.log('User install choice:', outcome);
+          console.log('User choice:', outcome);
           deferredPrompt = null;
         });
       }
     });
 
-    window.addEventListener('appinstalled', () => {
-      console.log('🎉 Aplikasi berhasil diinstall!');
-    });
+    window.addEventListener('appinstalled', () => console.log('🎉 App installed!'));
   }
 
-  // ================= IndexedDB Notes (Skilled + Advanced) =================
-  async _renderNotes(filterText = '', sortAsc = true) {
-    const notesList = document.getElementById('note-list');
-    if (!notesList) return;
+  async _renderDrafts(filterText = '', sortAsc = true) {
+    const draftsList = document.getElementById('note-list');
+    if (!draftsList) return;
 
-    // Gunakan cache jika sudah ada
-    if (!this.#notesCache.length) this.#notesCache = await getAllNotes();
+    if (!this.#draftsCache.length) this.#draftsCache = await getAllDrafts();
+    let drafts = [...this.#draftsCache];
 
-    let notes = [...this.#notesCache];
-
-    // Filter
-    if (filterText.trim() !== '') {
-      notes = notes.filter(note => note.text.toLowerCase().includes(filterText.toLowerCase()));
+    if (filterText) {
+      drafts = drafts.filter(d => d.text.toLowerCase().includes(filterText.toLowerCase()));
     }
 
-    // Sort
-    notes.sort((a, b) => {
+    drafts.sort((a, b) => {
       if (a.text.toLowerCase() < b.text.toLowerCase()) return sortAsc ? -1 : 1;
       if (a.text.toLowerCase() > b.text.toLowerCase()) return sortAsc ? 1 : -1;
       return 0;
     });
 
-    // Render
-    notesList.innerHTML = '';
-    notes.forEach(note => {
+    draftsList.innerHTML = '';
+    drafts.forEach(draft => {
       const li = document.createElement('li');
-      li.textContent = note.text;
+      li.textContent = draft.text;
 
       const deleteBtn = document.createElement('button');
       deleteBtn.textContent = 'Hapus';
       deleteBtn.addEventListener('click', async () => {
-        await deleteNote(note.id);
-        this.#notesCache = this.#notesCache.filter(n => n.id !== note.id);
-        this._renderNotes(filterText, sortAsc);
+        await deleteDraft(draft.id);
+        this.#draftsCache = this.#draftsCache.filter(d => d.id !== draft.id);
+        this._renderDrafts(filterText, sortAsc);
       });
 
       li.appendChild(deleteBtn);
-      notesList.appendChild(li);
+      draftsList.appendChild(li);
     });
   }
 
-  async _setupNotesForm() {
+  async _setupDraftForm() {
     const form = document.getElementById('note-form');
     const input = document.getElementById('note-input');
     const searchInput = document.getElementById('search-note');
@@ -153,35 +139,61 @@ class App {
 
     let sortAsc = true;
 
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', async e => {
       e.preventDefault();
       if (!input.value.trim()) return;
 
-      await addNote({ text: input.value });
-      input.value = '';
-      this.#notesCache = await getAllNotes();
-      this._renderNotes(searchInput?.value || '', sortAsc);
+      // Tambah draft ke IndexedDB
+      const draft = { text: input.value, createdAt: Date.now() };
+      await addDraft(draft);
 
+      // Update cache & render
+      this.#draftsCache = await getAllDrafts();
+      this._renderDrafts(searchInput?.value || '', sortAsc);
+
+      // Sync otomatis ke server kalau online
       if (navigator.onLine) {
-        syncOfflineData();
+        try {
+          const token = localStorage.getItem('token') || '';
+          const response = await fetch('https://story-api.dicoding.dev/v1/stories', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ title: input.value, description: input.value })
+          });
+
+          if (response.ok) {
+            console.log('Story berhasil dikirim ke server');
+            await deleteDraft(draft.id);
+            this.#draftsCache = await getAllDrafts();
+            this._renderDrafts(searchInput?.value || '', sortAsc);
+          } else {
+            console.log('Gagal kirim ke server, tetap tersimpan offline');
+          }
+        } catch (err) {
+          console.log('Gagal sync ke server:', err);
+        }
       }
+
+      input.value = '';
     });
 
     if (searchInput) {
       searchInput.addEventListener('input', () => {
-        this._renderNotes(searchInput.value, sortAsc);
+        this._renderDrafts(searchInput.value, sortAsc);
       });
     }
 
     if (sortButton) {
       sortButton.addEventListener('click', () => {
         sortAsc = !sortAsc;
-        this._renderNotes(searchInput?.value || '', sortAsc);
+        this._renderDrafts(searchInput?.value || '', sortAsc);
       });
     }
   }
 
-  // ================= Render Page =================
   async renderPage() {
     const url = window.location.hash.slice(1) || '/';
     const page = routes[url] || routes['/'];
@@ -192,11 +204,10 @@ class App {
 
       this._updateAuthLinks();
 
-      // Inisialisasi Notes jika ada
       if (document.getElementById('note-form')) {
-        this.#notesCache = await getAllNotes();
-        await this._renderNotes();
-        await this._setupNotesForm();
+        this.#draftsCache = await getAllDrafts();
+        await this._renderDrafts();
+        await this._setupDraftForm();
       }
     };
 
@@ -217,4 +228,32 @@ class App {
   }
 }
 
-export default App;
+document.addEventListener('DOMContentLoaded', () => {
+  const app = new App({
+    content: document.querySelector('#main-content'),
+    drawerButton: document.querySelector('#drawer-button'),
+    navigationDrawer: document.querySelector('#navigation-drawer'),
+  });
+
+  app.renderPage();
+
+  // Mock push lokal
+  const header = document.querySelector('.main-header');
+  if (header && !document.getElementById('btn-local-push')) {
+    const btn = document.createElement('button');
+    btn.id = 'btn-local-push';
+    btn.textContent = 'Push Test Lokal';
+    btn.style.marginLeft = '10px';
+    header.appendChild(btn);
+
+    btn.addEventListener('click', () => {
+      if (Notification.permission === 'granted') {
+        new Notification('Cerita baru!', { body: 'Push test dari localhost' });
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(p => {
+          if (p === 'granted') new Notification('Cerita baru!', { body: 'Push test dari localhost' });
+        });
+      }
+    });
+  }
+});

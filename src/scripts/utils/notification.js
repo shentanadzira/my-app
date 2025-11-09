@@ -1,4 +1,3 @@
-
 import swRegister, { disableNotifications } from './sw-register.js';
 
 const toggleBtn = document.getElementById('toggleNotification');
@@ -9,19 +8,21 @@ const updateButton = () => {
 };
 
 toggleBtn.addEventListener('click', async () => {
-  toggleBtn.disabled = true; 
+  toggleBtn.disabled = true;
+
   if (!enabled) {
-    await swRegister();
+    await swRegister(); // registrasi SW + subscribe push
     enabled = true;
   } else {
-    await disableNotifications();
+    await disableNotifications(); // unsubscribe push
     enabled = false;
   }
+
   updateButton();
   toggleBtn.disabled = false;
 });
 
-
+// Cek status subscription saat load
 (async () => {
   toggleBtn.disabled = true;
   if ('serviceWorker' in navigator && 'PushManager' in window) {

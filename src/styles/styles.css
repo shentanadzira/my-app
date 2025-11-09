@@ -412,3 +412,19 @@ button:hover, .btn:hover {
   border-radius: 4px;
   cursor: pointer;
 }
+
+#btn-subscribe {
+  margin-left: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: #2196f3;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.3s ease;
+}
+
+#btn-subscribe:hover {
+  background-color: #1976d2;
+}

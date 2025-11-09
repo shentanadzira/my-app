@@ -1,6 +1,6 @@
-const DB_NAME = 'notesDB';
+const DB_NAME = 'storyDB';
 const DB_VERSION = 1;
-const STORE_NAME = 'notes';
+const STORE_NAME = 'drafts';
 
 export function openDB() {
   return new Promise((resolve, reject) => {
@@ -18,19 +18,21 @@ export function openDB() {
   });
 }
 
-export async function addNote(note) {
+export async function addDraft(draft) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
-    const req = store.add(note);
+    const req = store.add(draft);
 
     req.onsuccess = () => resolve(true);
     req.onerror = (e) => reject(e);
+
+    tx.onerror = (e) => reject(e);
   });
 }
 
-export async function getAllNotes() {
+export async function getAllDrafts() {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly');
@@ -39,10 +41,12 @@ export async function getAllNotes() {
 
     req.onsuccess = (e) => resolve(e.target.result);
     req.onerror = (e) => reject(e);
+
+    tx.onerror = (e) => reject(e);
   });
 }
 
-export async function deleteNote(id) {
+export async function deleteDraft(id) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -51,5 +55,7 @@ export async function deleteNote(id) {
 
     req.onsuccess = () => resolve(true);
     req.onerror = (e) => reject(e);
+
+    tx.onerror = (e) => reject(e);
   });
 }
